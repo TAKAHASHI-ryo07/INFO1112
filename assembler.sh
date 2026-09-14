@@ -136,7 +136,7 @@ fi
 output_file="${base}.bin"
 linenumber=1
 IFS= read -r line
-#checking the initial static memory value
+#checking the initial static memory value...
 if (( $line == 0 )) ; then
     echo "It is an QUIT program"
     linenumber=$(( linenumber + 1 ))
