@@ -141,7 +141,7 @@ fi
 
 output_file="${base}.bin"
 linenumber=1
-IFS= read -r line
+IFS= read -r line < "$asbler_file"
 #checking the initial static memory value...
 if (( $line == 0 )) ; then
     echo "It is an QUIT program"
