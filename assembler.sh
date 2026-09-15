@@ -125,6 +125,7 @@ input_check(){
 if [ $# -eq 1 ] ; then
     if [[ -f $1 && $1 == *.vsc ]]; then
         asbler_file=$1
+        exec 3< "$asbler_file"
         base="${asbler_file%.vsc}"
     else
         echo -e "Arg must be a .vsc file and needs to exist in the current directory"
@@ -134,19 +135,19 @@ elif [ $# -eq 0 ]; then
     echo -e "usage: no argument is provided"
     exit 1
 else   
-    echo -e "The number of arg must be exactly one"
+    echo -e "usage: more than one arguments are provided"
     exit 1
 fi
 # checking the argument
 
 output_file="${base}.bin"
 linenumber=1
-IFS= read -r line < "$asbler_file"
+IFS= read -r line <&3
 #checking the initial static memory value...
 if (( $line == 0 )) ; then
     echo "It is an QUIT program"
     linenumber=$(( linenumber + 1 ))
-    IFS=',' read -r op reg mem < "$asbler_file";
+    IFS=',' read -r op reg mem <&3;
     if grep -q "QUIT" $op; then
         if (( $reg != 0 || $mem != 0)); then
             echo "Invalid value"
@@ -161,8 +162,8 @@ if (( $line == 0 )) ; then
 elif (( $line == 2 )) ; then
     echo "It is an ADD/SUB program"
     echo "-----------"
-    IFS= read -r data1 < "$asbler_file"
-    IFS= read -r data2 < "$asbler_file"
+    IFS= read -r data1 <&3
+    IFS= read -r data2 <&3
     if (( $data1 >= 0 && $data1 < 128 || $data2 >= 0 && $data2 < 128 )); then
         convert_decimal2binary $data1
         convert_binary2hex_store $membin_decimal2binary $memory_offset
@@ -182,19 +183,18 @@ else
     exit 1
 fi
 
-while IFS=',' read -r op reg mem; do
+while IFS=',' read -r op reg mem <&3; do
     input_check $op $reg $mem
     total_length=$(( ${#op} + ${#reg} + ${#mem} ))
     if (( total_length > 11 )); then
         exit 1
     fi
-    check_line $op $reg $mem $memory_offset
+    check_line $op $reg $mem $linenumber
     linenumber=$(( linenumber + 1 ))
     if (( $linenumber > 103 )); then
         break
     fi
-    
-done < "$asbler_file"
+done
 
 #printing the summary to the standard output
 print_output(){
