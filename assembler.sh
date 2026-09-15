@@ -123,16 +123,16 @@ input_check(){
 
 #main function
 if [ $# -eq 1 ] ; then
-    if [[ -f $1 && $1 == *.vsc ]]; then
-        asbler_file=$1
-        exec 3< "$asbler_file"
-        base="${asbler_file%.vsc}"
+    if [[ $1 != *.vsc ]]; then
+        echo -e "usage: input does not have the extension .vsc"
+        exit 1
     elif [[ ! -f $1 ]]; then
         echo -e "usage: input is not a file or is does not exist"
         exit 1
-    elif [[ $1 == *.vsc ]]; then
-        echo -e "usage: input does not have the extension .vsc"
-        exit 1
+    else
+        asbler_file=$1
+        exec 3< "$asbler_file"
+        base="${asbler_file%.vsc}"
     fi
 elif [ $# -eq 0 ]; then
     echo -e "usage: no argument is provided"
