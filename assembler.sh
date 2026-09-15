@@ -146,15 +146,17 @@ fi
 output_file="${base}.bin"
 linenumber=1
 IFS= read -r line <&3
-#checking the initial static memory value...
+#if the file is empty, exit 1
 if [ -z "$line" ]; then
     echo "usage: the file is empty - no .bin file is produced"
     exit 1
+#checking the initial static memory value...
 elif (( $line == 0 )) ; then
+    #QUIT program
     echo "It is an QUIT program"
     linenumber=$(( linenumber + 1 ))
     IFS=',' read -r op reg mem <&3;
-    if grep -q "QUIT" $op; then
+    if grep -q "QUIT" <<< "$op"; then
         if (( $reg != 0 || $mem != 0)); then
             echo "Invalid value"
             exit 1
@@ -166,6 +168,7 @@ elif (( $line == 0 )) ; then
     fi
 
 elif (( $line == 2 )) ; then
+    #add/sub program
     echo "It is an ADD/SUB program"
     echo "-----------"
     IFS= read -r data1 <&3
@@ -186,6 +189,7 @@ else
     exit 1
 fi
 
+#reading the line one by one 
 while IFS=',' read -r op reg mem <&3; do
     input_check $op $reg $mem
     total_length=$(( ${#op} + ${#reg} + ${#mem} ))
