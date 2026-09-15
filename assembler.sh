@@ -8,7 +8,7 @@ membin_decimal2binary=""
 memory_offset=0
 
 #convert decimal number to binary, if 2 -> reg, 8 -> mem
-convert_decimal2binary(){
+convert_decimal2binary() {
     membin_decimal2binary=""
     temp=$1
     if (( ${#temp} == 2 )); then
@@ -33,7 +33,9 @@ convert_decimal2binary(){
             fi 
             membin_decimal2binary="$membin_decimal2binary$bit"
         done 
-}     
+    fi
+}
+
 #convert binary number to hexadecimal number and store it on the memory
 convert_binary2hex_store(){
     binary=$1
@@ -116,17 +118,21 @@ input_check(){
         exit 1
     else
         return
+    fi
 }
 
 #main function
-if [ $! -eq 1 ] ; then
-    if (( -f $1 && $1 == "*.vsc" )); then
+if [ $# -eq 1 ] ; then
+    if [[ -f $1 && $1 == "*.vsc" ]]; then
         asbler_file=$1
         base="${asbler_file%.vsc}"
     else
         echo -e "Arg must be a .vsc file and needs to exist in the current directory"
         exit 1
     fi
+elif [ $# -eq 0 ]; then
+    echo -e "usage: no arg is provided"
+    exit 1
 else   
     echo -e "The number of arg must be exactly one"
     exit 1
