@@ -8,38 +8,38 @@ membin_decimal2binary=""
 memory_offset=0
 
 #convert decimal number to binary, if 2 -> reg, 8 -> mem
-convert_decimal2binary() {
+convert_decimal2binary_mem() {
     membin_decimal2binary=""
     temp=$1
-    if (( ${#temp} == 2 )); then
-        for weight in 2 1
-        do
-            if (( $temp >= $weight )); then
-                bit=1
-                temp=$(( $temp - $weight ))
-            else
-                bit=0
-            fi 
+    for weight in 128 64 32 16 8 4 2 1
+    do
+        if (( $temp >= $weight )); then
+            bit=1
+            temp=$(( $temp - $weight ))
+        else
+            bit=0
+        fi 
             membin_decimal2binary="$membin_decimal2binary$bit"
-        done
-    else
-        for weight in 128 64 32 16 8 4 2 1
-        do
-            if (( $temp >= $weight )); then
-                bit=1
-                temp=$(( $temp - $weight ))
-            else
-                bit=0
-            fi 
-            membin_decimal2binary="$membin_decimal2binary$bit"
-        done 
-    fi
+    done
 }
-
+convert_decimal2binary_reg() {
+    membin_decimal2binary=""
+    temp=$1
+    for weight in 2 1
+    do
+        if (( $temp >= $weight )); then
+            bit=1
+            temp=$(( $temp - $weight ))
+        else
+            bit=0
+        fi 
+            membin_decimal2binary="$membin_decimal2binary$bit"
+    done
+}
 #convert binary number to hexadecimal number and store it on the memory
 convert_binary2hex_store(){
     binary=$1
-    hex=$(echo "ibase=2; obase=16; $binary" | bc)
+    hex=$(printf "%02X" "$((2#$binary))")
     dataArray[$2]=$hex
     memory_offset=$(( memory_offset + 1 ))
 }
@@ -55,25 +55,25 @@ check_line(){
 
     #load
     if grep -q "LOAD" <<< "$1"; then
-        convert_decimal2binary $2
+        convert_decimal2binary_reg $2
         temp=$membin_decimal2binary
         temp="000001$temp"
         echo "Line $4: $1,$2,$3 ..... <VALID>"
     #store
     elif grep -q "STORE" <<< "$1"; then
-        convert_decimal2binary $2
+        convert_decimal2binary_reg $2
         temp=$membin_decimal2binary
         temp="000010$temp"
         echo "Line $4: $1,$2,$3 ..... <VALID>"
     #addition
     elif grep -q "ADD" <<< "$1"; then
-        convert_decimal2binary $2
+        convert_decimal2binary_reg $2
         temp=$membin_decimal2binary
         temp="000011$temp"
         echo "Line $4: $1,$2,$3 ..... <VALID>"
     #subtraction
     elif grep -q "SUB" <<< "$1"; then
-        convert_decimal2binary $2
+        convert_decimal2binary_reg $2
         temp=$membin_decimal2binary
         temp="000100$temp"
         echo "Line $4: $1,$2,$3 ..... <VALID>"
@@ -91,7 +91,7 @@ check_line(){
             echo "Invalid memory address"
             exit 1
         fi
-        convert_decimal2binary $2
+        convert_decimal2binary_reg $2
         temp=$membin_decimal2binary
         temp="001001$temp"
         echo "Line $4: $1,$2,$3 ..... <VALID>"
@@ -101,9 +101,9 @@ check_line(){
         exit 1
     fi
     #store opcode and memory address on the memory space
-    convert_binary2hex_store $temp $4
-    convert_decimal2binary $3
-    convert_binary2hex_store $membin_decimal2binary $4
+    convert_binary2hex_store $temp $memory_offset
+    convert_decimal2binary_mem $3
+    convert_binary2hex_store $membin_decimal2binary $memory_offset
 }
 #checking if the input is null or 
 input_check(){
@@ -155,7 +155,7 @@ if (( $line == 0 )) ; then
         fi 
         temp="00100000"
         convert_binary2hex_store $temp $memory_offset
-        convert_decimal2binary $mem
+        convert_decimal2binary_mem $mem
         convert_binary2hex_store $membin_decimal2binary $memory_offset
     fi
 
@@ -165,9 +165,9 @@ elif (( $line == 2 )) ; then
     IFS= read -r data1 <&3
     IFS= read -r data2 <&3
     if (( $data1 >= 0 && $data1 < 128 || $data2 >= 0 && $data2 < 128 )); then
-        convert_decimal2binary $data1
+        convert_decimal2binary_mem $data1
         convert_binary2hex_store $membin_decimal2binary $memory_offset
-        convert_decimal2binary $data2
+        convert_decimal2binary_mem $data2
         convert_binary2hex_store $membin_decimal2binary $memory_offset
     else
         echo -e "The initially stored data must be within the range between 0 to 127"
