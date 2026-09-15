@@ -147,7 +147,10 @@ output_file="${base}.bin"
 linenumber=1
 IFS= read -r line <&3
 #checking the initial static memory value...
-if (( $line == 0 )) ; then
+if [ -z "$line" ]; then
+    echo "usage: the file is empty - no .bin file is produced"
+    exit 1
+elif (( $line == 0 )) ; then
     echo "It is an QUIT program"
     linenumber=$(( linenumber + 1 ))
     IFS=',' read -r op reg mem <&3;
@@ -178,9 +181,6 @@ elif (( $line == 2 )) ; then
     fi
     linenumber=$(( $linenumber + 3 ))
 
-elif [ -z "$line" ]; then
-    echo "usage: the file is empty – no .bin file is produced"
-    exit 1
 else
     echo -e "The number of initially stored data must be either 0 or 2"
     exit 1
