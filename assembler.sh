@@ -127,8 +127,11 @@ if [ $# -eq 1 ] ; then
         asbler_file=$1
         exec 3< "$asbler_file"
         base="${asbler_file%.vsc}"
-    else
-        echo -e "Arg must be a .vsc file and needs to exist in the current directory"
+    elif [[ ! -f $1 ]]; then
+        echo -e "usage: input is not a file or is does not exist"
+        exit 1
+    elif [[ $1 == *.vsc ]]; then
+        echo -e "usage: input does not have the extension .vsc"
         exit 1
     fi
 elif [ $# -eq 0 ]; then
@@ -176,7 +179,7 @@ elif (( $line == 2 )) ; then
     linenumber=$(( $linenumber + 3 ))
 
 elif [ -z "$line" ]; then
-    echo "This file is empty"
+    echo "usage: the file is empty – no .bin file is produced"
     exit 1
 else
     echo -e "The number of initially stored data must be either 0 or 2"
