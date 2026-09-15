@@ -48,37 +48,37 @@ convert_binary2hex_store(){
 check_line(){
     temp=""
     #if the value of reg and mem is out of range -> exit
-    if (( $2 < 0 || $2 > 3 || $3 < 0 || $3 > 256 )); then
+    if (( $2 < 0 || $2 > 3 || $3 < 0 || $3 > 255 )); then
         echo -e "The value is out of range"
         exit 1
     fi 
 
     #load
-    if grep -q "LOAD" $1; then
+    if grep -q "LOAD" <<< "$1"; then
         convert_decimal2binary $2
         temp=$membin_decimal2binary
         temp="000001$temp"
         echo "Line $4: $1,$2,$3 ..... <VALID>"
     #store
-    elif grep -q "STORE" $1; then
+    elif grep -q "STORE" <<< "$1"; then
         convert_decimal2binary $2
         temp=$membin_decimal2binary
         temp="000010$temp"
         echo "Line $4: $1,$2,$3 ..... <VALID>"
     #addition
-    elif grep -q "ADD" $1; then
+    elif grep -q "ADD" <<< "$1"; then
         convert_decimal2binary $2
         temp=$membin_decimal2binary
         temp="000011$temp"
         echo "Line $4: $1,$2,$3 ..... <VALID>"
     #subtraction
-    elif grep -q "SUB" $1; then
+    elif grep -q "SUB" <<< "$1"; then
         convert_decimal2binary $2
         temp=$membin_decimal2binary
         temp="000100$temp"
         echo "Line $4: $1,$2,$3 ..... <VALID>"
     #quit
-    elif grep -q "QUIT" $1; then
+    elif grep -q "QUIT" <<< "$1"; then
         if (( $mem != 0 )); then
             echo "Invalid memory address"
             exit 1
@@ -86,7 +86,7 @@ check_line(){
         temp="00100000"
         echo "Found the <QUIT> so ending the conversion procedure ......."
     #print
-    elif grep -q "PRINT" $1; then
+    elif grep -q "PRINT" <<< "$1"; then
         if (( $mem != 0 )); then
             echo "Invalid memory address"
             exit 1
@@ -146,7 +146,7 @@ IFS= read -r line
 if (( $line == 0 )) ; then
     echo "It is an QUIT program"
     linenumber=$(( linenumber + 1 ))
-    IFS=',' read -r op reg mem;
+    IFS=',' read -r op reg mem < "$asbler_file";
     if grep -q "QUIT" $op; then
         if (( $reg != 0 || $mem != 0)); then
             echo "Invalid value"
@@ -160,8 +160,8 @@ if (( $line == 0 )) ; then
 elif (( $line == 2 )) ; then
     echo "It is an ADD/SUB program"
     echo "-----------"
-    IFS= read -r data1
-    IFS= read -r data2
+    IFS= read -r data1 < "$asbler_file"
+    IFS= read -r data2 < "$asbler_file"
     if (( $data1 >= 0 && $data1 < 128 || $data2 >= 0 && $data2 < 128 )); then
         convert_decimal2binary $data1
         convert_binary2hex_store $membin_decimal2binary $memory_offset
