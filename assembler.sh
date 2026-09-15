@@ -123,7 +123,7 @@ input_check(){
 
 #main function
 if [ $# -eq 1 ] ; then
-    if [[ -f $1 && $1 == "*.vsc" ]]; then
+    if [[ -f $1 && $1 == *.vsc ]]; then
         asbler_file=$1
         base="${asbler_file%.vsc}"
     else
