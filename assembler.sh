@@ -102,7 +102,7 @@ check_line(){
     fi
     #store opcode and memory address on the memory space
     convert_binary2hex_store $temp $4
-    convert_decimal2binary $mem
+    convert_decimal2binary $3
     convert_binary2hex_store $membin_decimal2binary $4
 }
 #checking if the input is null or 
@@ -131,7 +131,7 @@ if [ $# -eq 1 ] ; then
         exit 1
     fi
 elif [ $# -eq 0 ]; then
-    echo -e "usage: no arg is provided"
+    echo -e "usage: no argument is provided"
     exit 1
 else   
     echo -e "The number of arg must be exactly one"
@@ -156,6 +156,7 @@ if (( $line == 0 )) ; then
         convert_binary2hex_store $temp $memory_offset
         convert_decimal2binary $mem
         convert_binary2hex_store $membin_decimal2binary $memory_offset
+    fi
 
 elif (( $line == 2 )) ; then
     echo "It is an ADD/SUB program"
@@ -201,16 +202,17 @@ print_output(){
     echo "************"
     echo "Done with the conversion"
     echo "The content of the .bin file is:"
-    for i in {0..$memory_offset}
+    for (( i=0; i<memory_offset; i++ ))
     do
-        echo $dataArray[i]
+        echo "${dataArray[i]}"
     done
 }
 #creating the output file
 print_file(){
-    for i in {0..$memory_offset}
+    for (( i=0; i<memory_offset; i++ ))
     do 
-        echo $dataArray[i] >> output_file
+        echo ${dataArray[i]} >> $output_file
+    done
 }
 
 print_output
