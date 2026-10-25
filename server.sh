@@ -76,7 +76,7 @@ tail -n 0 -f /tmp/data.log | while true; do
 
 		jq -n --arg title "$title" --arg topic "$topic" --arg due_date "$due_date" --arg points "$points" '{title: $title, topic: $topic,due_date: $due_date, points: ($points | tonumber)}' > assignment.json
 		cat assignment.json > /tmp/reply
-	elif [ $line = "population" ]; then
+	elif [ "$line" = "population" ]; then
 
 		URL="https://dbr.abs.gov.au/processedData/csv/STE_1.csv"
 		result=$(curl -s $URL | grep "ERP_P_20" | awk -F',' '{print $NF}')
@@ -88,7 +88,7 @@ tail -n 0 -f /tmp/data.log | while true; do
 		fi
 
 		if ! python3 /tmp/plot.py /tmp/population.csv /tmp/population.png 2> /tmp/plot.err; then
-			echo "Error: failed to generate plot: $(cat /tmp/plot.err)" > /tmp/reply
+			echo "Error: failed to generate plot: $(cat /tmp/plot.err)" > /tmp/reply; continue
 		fi
 		cat /tmp/population.png > /tmp/reply
 	else 
@@ -97,13 +97,13 @@ tail -n 0 -f /tmp/data.log | while true; do
 			echo "Error: usage: <name> or <lat>,<long>" > /tmp/reply; continue
 		fi
 
-		if echo "$line" | grep -qE '^?[0-9]+(\.[0-9]+)?, *-?[0-9]+(/.[0-9]+)?$'; then
+		if echo "$line" | grep -qE '^-?[0-9]+(\.[0-9]+)?, *-?[0-9]+(\.[0-9]+)?$'; then
 			lat=$(echo $line | cut -d',' -f1)
-			long=$(echo $line | cut -d',' -f2 | tr -d ' ')
+			lon=$(echo $line | cut -d',' -f2 | tr -d ' ')
 			name="$line"
 		else
 			name=$(echo $line | tr '[:lower:]' '[:upper:]')
-			safe=$(echo $line | tr "s/'/''/g")
+			safe=$(echo $line | sed "s/'/''/g")
 			response=$(curl -s -G \
 				--data-urlencode "where=poiname='$safe'" \
 				--data-urlencode "outFields=poiname" \
@@ -111,7 +111,7 @@ tail -n 0 -f /tmp/data.log | while true; do
 				--data-urlencode "outSR=4326" \
 				--data-urlencode "f=json" \
 				"$API") || { echo "Error: could not connecy to NSQ POI service" > /tmp/reply; continue; }
-			if [ -z "$(echo "$response" | jq -r '.features | length')" -eq 0 ];then
+			if [ "$(echo "$response" | jq -r '.features | length')" -eq 0 ];then
 				echo "Error: This POI is an invalid Input" > /tmp/reply ; continue
 			fi
 			lat=$(echo $response | jq -r '.features[0].geometry.y')
@@ -130,9 +130,9 @@ tail -n 0 -f /tmp/data.log | while true; do
 			--data-urlencode "outSR=4326" \
 			--data-urlencode "f=json" \
 			"$API") || { echo "Error: could not connect to NSW POI service" > /tmp/reply; continue; }
-		if [ $(echo "$response" | jq -r '.features | length') -eq "0" ]; then
+		if [ $(echo "$response" | jq -r '.features | length') -eq 0 ]; then
 			echo "Error: NSW POI service returned an error" > /tmp/reply
-		cat $response > /tmp/reply
 		fi
+		cat $response > /tmp/reply
 	fi
 done
