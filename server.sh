@@ -133,6 +133,6 @@ tail -n 0 -f /tmp/data.log | while true; do
 		if [ $(echo "$response" | jq -r '.features | length') -eq 0 ]; then
 			echo "Error: NSW POI service returned an error" > /tmp/reply
 		fi
-		cat $response > /tmp/reply
+		echo $response > /tmp/reply
 	fi
 done
