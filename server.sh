@@ -40,6 +40,12 @@ EOF
 : > /tmp/nc.log
 tail -f /tmp/nc.log &
 tail -n 0 -f /tmp/data.log | while true; do
+	if [ -n "$busypid" ]; then
+		kill "$busypid" 2> /dev/null
+		pkill -f "nc -l -p $listen_port"
+		busypid=
+	fi
+
 	if [ -n "$ncpid" ]; then
 		exec 3>&-
 		wait "$ncpid"
@@ -59,6 +65,14 @@ tail -n 0 -f /tmp/data.log | while true; do
 
 	read -r line || break
 	echo "Request: $line"
+
+	(
+		while true; do
+			echo "Error: server is busy with another request. Request rejected." \
+				| nc -l -p "$listen_port" >> /tmp/reply 2>&1
+		done
+	) 3>&- &
+	busypid=$!
 
 	if [ "$line" = "assignment" ]; then
 
