@@ -1,11 +1,9 @@
 #!/bin/sh
 ip=$(ifconfig eth0 | grep "inet " | awk '{print $2}' | cut -d: -f2)
+listen_port=1234
 pkill nc
 pkill tail
-rm -f /tmp/reply
-mkfifo /tmp/reply
-exec 3<> /tmp/reply
-apk add python3 py3-matplotlib
+apk add python3 py3-matplotlib iproute2-ss curl jq html2text
 cat > /tmp/plot.py << 'EOF'
 import sys
 import matplotlib
@@ -38,18 +36,39 @@ plt.grid(True)
 plt.tight_layout()
 plt.savefig(out)
 EOF
-nc -lvk -p 1234 < /tmp/reply 2> /tmp/nc.log > /tmp/data.log &
-port=$(ss -ltn | awk 'NR == 2 {print $4}' | cut -d: -f2)
-echo "The server is running at Link addr:$ip, port=$port"
-echo "..............."
+: > /tmp/data.log
+: > /tmp/nc.log
 tail -f /tmp/nc.log &
-tail -f /tmp/data.log | while read -r line; do
+tail -n 0 -f /tmp/data.log | while true; do
+	if [ -n "$ncpid" ]; then
+		exec 3>&-
+		wait "$ncpid"
+	fi
+
+	rm -f /tmp/reply
+	mkfifo /tmp/reply
+	exec 3<> /tmp/reply
+	nc -lv -p "$listen_port" < /tmp/reply >> /tmp/data.log 2>> /tmp/nc.log 3>&- &
+	ncpid=$!
+
+	if [ -z "$port" ]; then
+		port=$(ss -ltn | awk 'NR == 2 {print $4}' | awk -F: '{print $NF}')
+		echo "The server is running at Link addr:$ip, port=$port"
+		echo "..............."
+	fi
+
+	read -r line || break
+	echo "Request: $line"
+
 	if [ "$line" = "assignment" ]; then
 
 		URL="https://www.sydney.edu.au/units/INFO1112/2026-S2C-ND-CC"
 		result=$(curl -sS $URL | html2text -nobs -width 300 | grep -A 2 "Assignment 2" | tr "\n" " " | tr -s " ")
 		echo "$result"
-
+		
+		if [ -z "$result" ];then
+			echo "Error: curl failure" > /tmp/reply; continue
+		fi
 		title=$(echo "$result" | grep -oE 'Assignment [0-9]+' | head -n 1)
 		topic=$(echo "$result" | awk -F'-' '{print $2}' | awk -F' ' '{print $1}')
 		due_date=$(echo "$result" | grep -oE '[0-9]{2} [A-Z][a-z]{2} [0-9]{4} at [0-9]{1,2}:[0-9]{2}' | sed 's/ at / /')
@@ -65,13 +84,12 @@ tail -f /tmp/data.log | while read -r line; do
 		curl -s $URL | tr -d '\r' | awk -F',' 'NR == 1 { for (i = 4; i <= NF; i++) year[i] = $i; next } $1 == "ERP_P_20" { for (i = 4; i <= NF; i++) if ($i != "") print year[i] "," $i }' > /tmp/population.csv
 		
 		if [ ! -s /tmp/population.csv ]; then
-			echo "Error: population data not found i CSV" > /tmp/reply; continue
+			echo "Error: population data not found in CSV" > /tmp/reply; continue
 		fi
 
 		if ! python3 /tmp/plot.py /tmp/population.csv /tmp/population.png 2> /tmp/plot.err; then
 			echo "Error: failed to generate plot: $(cat /tmp/plot.err)" > /tmp/reply
 		fi
-		
 		cat /tmp/population.png > /tmp/reply
 	else 
 		API="https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_POI/MapServer/0/query"
@@ -79,10 +97,10 @@ tail -f /tmp/data.log | while read -r line; do
 			echo "Error: usage: <name> or <lat>,<long>" > /tmp/reply; continue
 		fi
 
-		if echo $line | grep -qE '^?[0-9]+(\.[0-9]+)?, *-?[0-9]+(/.[0-9]+)?$'; then
+		if echo "$line" | grep -qE '^?[0-9]+(\.[0-9]+)?, *-?[0-9]+(/.[0-9]+)?$'; then
 			lat=$(echo $line | cut -d',' -f1)
 			long=$(echo $line | cut -d',' -f2 | tr -d ' ')
-			name=$line
+			name="$line"
 		else
 			name=$(echo $line | tr '[:lower:]' '[:upper:]')
 			safe=$(echo $line | tr "s/'/''/g")
@@ -93,7 +111,7 @@ tail -f /tmp/data.log | while read -r line; do
 				--data-urlencode "outSR=4326" \
 				--data-urlencode "f=json" \
 				"$API") || { echo "Error: could not connecy to NSQ POI service" > /tmp/reply; continue; }
-			if [ -z "$(echo "$response" | jq -r '.features | length')" -eq 0];then
+			if [ -z "$(echo "$response" | jq -r '.features | length')" -eq 0 ];then
 				echo "Error: This POI is an invalid Input" > /tmp/reply ; continue
 			fi
 			lat=$(echo $response | jq -r '.features[0].geometry.y')
@@ -112,9 +130,9 @@ tail -f /tmp/data.log | while read -r line; do
 			--data-urlencode "outSR=4326" \
 			--data-urlencode "f=json" \
 			"$API") || { echo "Error: could not connect to NSW POI service" > /tmp/reply; continue; }
-		if [ echo "$response" | jq -r '.features | length' -eq 0]; then
+		if [ $(echo "$response" | jq -r '.features | length') -eq "0" ]; then
 			echo "Error: NSW POI service returned an error" > /tmp/reply
 		cat $response > /tmp/reply
+		fi
 	fi
-continue
 done
